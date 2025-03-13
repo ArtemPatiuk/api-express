@@ -27,7 +27,12 @@ export class UserController extends BaseController implements IUsersControllerIn
 				func: this.register,
 				middlewares: [new ValidateMiddleware(UserRegisterDto)],
 			},
-			{ path: '/login', method: 'post', func: this.login },
+			{
+				path: '/login',
+				method: 'post',
+				func: this.login,
+				middlewares: [new ValidateMiddleware(UserLoginDto)],
+			},
 		]);
 	}
 
@@ -42,9 +47,16 @@ export class UserController extends BaseController implements IUsersControllerIn
 		}
 		this.ok(res, { id: result.id, email: result.email, name: result.name });
 	}
-	login(req: Request<object, object, UserLoginDto>, res: Response, next: NextFunction): void {
-		console.log(req.body);
-		this.ok(res, 'login');
+	async login(
+		req: Request<object, object, UserLoginDto>,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
+		const result = await this.UserService.validateUser(req.body);
+		if (!result) {
+			return next(new HTTPError(422, 'Помилка авторизації'));
+		}
+		this.ok(res, 'login success');
 		//next(new HTTPError(401,'Помилка авторизації','Контекст'))
 	}
 }
