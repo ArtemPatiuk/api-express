@@ -10,7 +10,7 @@ import { IUsersControllerInterface } from './users.controller.interface';
 import { UserRegisterDto } from './dto/user-register.dto';
 import { UserLoginDto } from './dto/user-login.dto';
 import { User } from './user.entity';
-import { UserService } from './user.service';
+import { UserService } from './users.service';
 import { ValidateMiddleware } from '../common/validate.middleware';
 
 @injectable()
@@ -40,7 +40,7 @@ export class UserController extends BaseController implements IUsersControllerIn
 		if (!result) {
 			return next(new HTTPError(422, 'Такий користувач вже існує'));
 		}
-		this.ok(res, { email: result.email, name: result.name });
+		this.ok(res, { id: result.id, email: result.email, name: result.name });
 	}
 	login(req: Request<object, object, UserLoginDto>, res: Response, next: NextFunction): void {
 		console.log(req.body);
