@@ -32,4 +32,7 @@ export class UserService implements IUserServiceInterface {
 		const newUser = new User(user.email, user.name, user.password);
 		return newUser.comparePassword(password);
 	}
+	async userInfo(email: string): Promise<UserModel | null> {
+		return this.UsersRepository.find(email);
+	}
 }

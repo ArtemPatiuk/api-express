@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
 import { BaseController } from '../common/base.controller';
-import { LoggerService } from '../logger/logger.service';
 import { HTTPError } from '../errors/http-error.class';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../types';
@@ -9,15 +8,18 @@ import 'reflect-metadata';
 import { IUsersControllerInterface } from './users.controller.interface';
 import { UserRegisterDto } from './dto/user-register.dto';
 import { UserLoginDto } from './dto/user-login.dto';
-import { User } from './user.entity';
 import { UserService } from './users.service';
 import { ValidateMiddleware } from '../common/validate.middleware';
+import { sign } from 'jsonwebtoken';
+import { IConfigServiceInterface } from '../config/config.service.interface';
+import { AuthGuard } from '../common/auth.guard';
 
 @injectable()
 export class UserController extends BaseController implements IUsersControllerInterface {
 	constructor(
 		@inject(TYPES.ILogger) private loggerService: ILogger,
 		@inject(TYPES.UserService) private UserService: UserService,
+		@inject(TYPES.ConfigService) private ConfigService: IConfigServiceInterface,
 	) {
 		super(loggerService);
 		this.bindRoutes([
@@ -32,6 +34,12 @@ export class UserController extends BaseController implements IUsersControllerIn
 				method: 'post',
 				func: this.login,
 				middlewares: [new ValidateMiddleware(UserLoginDto)],
+			},
+			{
+				path: '/info',
+				method: 'get',
+				func: this.info,
+				middlewares: [new AuthGuard()],
 			},
 		]);
 	}
@@ -56,7 +64,34 @@ export class UserController extends BaseController implements IUsersControllerIn
 		if (!result) {
 			return next(new HTTPError(422, 'Помилка авторизації'));
 		}
-		this.ok(res, 'login success');
+		const secret = this.ConfigService.get('SECRET');
+		const jwt = await this.sigtJWT(req.body.email, secret);
+
+		this.ok(res, { jwt });
 		//next(new HTTPError(401,'Помилка авторизації','Контекст'))
+	}
+	async info({ user }: Request, res: Response, next: NextFunction): Promise<void> {
+		const userInfo = await this.UserService.userInfo(user);
+		this.ok(res, { email: userInfo?.email, id: userInfo?.id });
+	}
+	private sigtJWT(email: string, secret: string): Promise<string> {
+		return new Promise((resolve, reject) => {
+			sign(
+				{
+					email,
+					iat: Math.floor(Date.now() / 1000),
+				},
+				secret,
+				{
+					algorithm: 'HS256',
+				},
+				(err, token) => {
+					if (err) {
+						reject(err);
+					}
+					resolve(token as string);
+				},
+			);
+		});
 	}
 }
